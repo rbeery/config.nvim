@@ -91,7 +91,7 @@ vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
-vim.g.have_nerd_font = false
+vim.g.have_nerd_font = true
 
 -- [[ Setting options ]]
 -- See `:help vim.opt`
@@ -102,7 +102,7 @@ vim.g.have_nerd_font = false
 vim.opt.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.opt.relativenumber = true
+vim.opt.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.opt.mouse = 'a'
@@ -653,6 +653,40 @@ require('lazy').setup({
       --  So, we create new capabilities with blink.cmp, and then broadcast that to the servers.
       local capabilities = require('blink.cmp').get_lsp_capabilities()
 
+      local ok, mason_registry = pcall(require, 'mason-registry')
+      if not ok then
+        vim.notify('mason-registry could not be loaded', vim.log.levels.WARN)
+        return
+      end
+
+      local angularls_path = mason_registry.get_package('angular-language-server'):get_install_path()
+
+      local cmd = {
+        'ngserver',
+        '--stdio',
+        '--tsProbeLocations',
+        table.concat({
+          angularls_path,
+          vim.fn.getcwd(),
+        }, ','),
+        '--ngProbeLocations',
+        table.concat({
+          angularls_path .. '/node_modules/@angular/language-server',
+          vim.fn.getcwd(),
+        }, ','),
+      }
+
+      local function open_if_exists(filepath)
+        if filepath == vim.fn.expand '%' then
+          return -- you're already in the file
+        end
+
+        if vim.loop.fs_stat(filepath) then
+          vim.cmd('edit ' .. filepath)
+        else
+          vim.notify('File not found: ' .. filepath, vim.log.levels.WARN)
+        end
+      end
       -- Enable the following language servers
       --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
       --
@@ -673,8 +707,7 @@ require('lazy').setup({
         --    https://github.com/pmizio/typescript-tools.nvim
         --
         -- But for many setups, the LSP (`ts_ls`) will work just fine
-        -- ts_ls = {},
-        --
+        ts_ls = {},
 
         lua_ls = {
           -- cmd = { ... },
@@ -686,9 +719,56 @@ require('lazy').setup({
                 callSnippet = 'Replace',
               },
               -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
-              -- diagnostics = { disable = { 'missing-fields' } },
+              diagnostics = { disable = { 'missing-fields' } },
             },
           },
+        },
+
+        -- Additional lsps
+        angularls = {
+          capabilities = capabilities,
+          cmd = cmd,
+          filetypes = { 'typescript', 'html', 'typescriptreact', 'typescript.tsx' },
+          root_dir = require('lspconfig').util.root_pattern('angular.json', 'package.json'),
+          on_attach = function(client, bufnr)
+            -- add angular key maps here
+            vim.keymap.set('n', '<leader>ah', function()
+              open_if_exists(vim.fn.expand '%:r' .. '.html')
+            end, { desc = 'Open component HTML', buffer = bufnr })
+
+            vim.keymap.set('n', '<leader>as', function()
+              open_if_exists(vim.fn.expand '%:r' .. '.scss')
+            end, { desc = 'Open component SCSS', buffer = bufnr })
+
+            vim.keymap.set('n', '<leader>at', function()
+              open_if_exists(vim.fn.expand '%:r' .. '.ts')
+            end, { desc = 'Open component TS', buffer = bufnr })
+          end,
+          on_new_config = function(new_config, new_root_dir)
+            new_config.cmd = cmd
+          end,
+        },
+        cssls = {
+          capabilities = capabilities,
+          settings = {
+            css = { validate = true },
+            scss = { validate = false },
+            less = { validate = true },
+          },
+          on_attach = function()
+            -- add angular key maps here
+            vim.keymap.set('n', '<leader>ah', function()
+              open_if_exists(vim.fn.expand '%:r' .. '.html')
+            end, { desc = 'Open component HTML' })
+
+            vim.keymap.set('n', '<leader>as', function()
+              open_if_exists(vim.fn.expand '%:r' .. '.scss')
+            end, { desc = 'Open component SCSS' })
+
+            vim.keymap.set('n', '<leader>at', function()
+              open_if_exists(vim.fn.expand '%:r' .. '.ts')
+            end, { desc = 'Open component TS' })
+          end,
         },
       }
 
@@ -936,7 +1016,7 @@ require('lazy').setup({
     main = 'nvim-treesitter.configs', -- Sets main module to use for opts
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
     opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
+      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc', 'angular', 'scss' },
       -- Autoinstall languages that are not installed
       auto_install = true,
       highlight = {
@@ -968,15 +1048,15 @@ require('lazy').setup({
   -- require 'kickstart.plugins.debug',
   -- require 'kickstart.plugins.indent_line',
   -- require 'kickstart.plugins.lint',
-  -- require 'kickstart.plugins.autopairs',
-  -- require 'kickstart.plugins.neo-tree',
+  require 'kickstart.plugins.autopairs',
+  require 'kickstart.plugins.neo-tree',
   -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
   --    This is the easiest way to modularize your config.
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
   --
   -- For additional information with loading, sourcing and examples see `:help lazy.nvim-🔌-plugin-spec`
   -- Or use telescope!
