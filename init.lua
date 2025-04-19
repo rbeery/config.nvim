@@ -770,6 +770,7 @@ require('lazy').setup({
             end, { desc = 'Open component TS' })
           end,
         },
+        svelte = {},
       }
 
       -- Ensure the servers and tools above are installed
