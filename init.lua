@@ -771,6 +771,7 @@ require('lazy').setup({
           end,
         },
         svelte = {},
+        csharp_ls = {},
       }
 
       -- Ensure the servers and tools above are installed
